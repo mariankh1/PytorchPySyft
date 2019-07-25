@@ -5,11 +5,6 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 
 import syft as sy
-hook = sy.TorchHook(torch)
-worker1 = sy.VirtualWorker(hook, id="worker1")
-worker2 = sy.VirtualWorker(hook, id="worker2")
-worker3 = sy.VirtualWorker(hook, id="worker3")
-worker4 = sy.VirtualWorker(hook, id="worker4")
 
 
 class Arguments():
@@ -23,32 +18,6 @@ class Arguments():
         self.seed = 1
         self.log_interval = 30
         self.save_model = False
-
-args = Arguments()
-
-use_cuda = not args.no_cuda and torch.cuda.is_available()
-
-torch.manual_seed(args.seed)
-
-device = torch.device("cuda" if use_cuda else "cpu")
-
-kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
-
-federated_train_loader = sy.FederatedDataLoader(
-    datasets.MNIST('../data', train=True, download=True,
-                   transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ]))
-    .federate((worker1,worker2, worker3, worker4)),
-    batch_size=args.batch_size, shuffle=True, **kwargs)
-
-test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=False, transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ])),
-    batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
 class Net(nn.Module):
     def __init__(self):
@@ -103,6 +72,38 @@ def test(args, model, device, test_loader):
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
+
+hook = sy.TorchHook(torch)
+worker1 = sy.VirtualWorker(hook, id="worker1")
+worker2 = sy.VirtualWorker(hook, id="worker2")
+worker3 = sy.VirtualWorker(hook, id="worker3")
+worker4 = sy.VirtualWorker(hook, id="worker4")
+
+args = Arguments()
+
+use_cuda = not args.no_cuda and torch.cuda.is_available()
+
+torch.manual_seed(args.seed)
+
+device = torch.device("cuda" if use_cuda else "cpu")
+
+kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
+
+federated_train_loader = sy.FederatedDataLoader(
+    datasets.MNIST('../data', train=True, download=True,
+                   transform=transforms.Compose([
+                       transforms.ToTensor(),
+                       transforms.Normalize((0.1307,), (0.3081,))
+                   ]))
+    .federate((worker1,worker2, worker3, worker4)),
+    batch_size=args.batch_size, shuffle=True, **kwargs)
+
+test_loader = torch.utils.data.DataLoader(
+    datasets.MNIST('../data', train=False, transform=transforms.Compose([
+                       transforms.ToTensor(),
+                       transforms.Normalize((0.1307,), (0.3081,))
+                   ])),
+    batch_size=args.test_batch_size, shuffle=True, **kwargs)
 
 
 model = Net().to(device)
